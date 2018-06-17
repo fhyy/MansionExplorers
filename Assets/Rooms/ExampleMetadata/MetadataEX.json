@@ -1,0 +1,46 @@
+﻿{
+    "baseRotation":0, //yaw rotation: 0, (90/-270), (180/-180), (270/-90)
+    "occupiedTiles": [(0, 0, 0), (1, 0, 0)], //(x,y,z) from base position and rotation. Z+ => North, X+ => East
+    "doors": [
+        {
+            "position": (0, 0, 0, 'N'), //(x,y,z,DIRECTION), DIRECTION: N North, E East, S South, W West (U/D up/down?)
+            "lockState": "Unlocked",
+            "startingState": "Closed",
+            "health": 0, // health <= 0 --> unbreakable. health > 0 --> breakable
+            "overwriteable":"true" //Master: Door type can't be overwritten by other rooms. Slave: Door type can be overwritten by other rooms (Master doors)
+        },
+        {
+            "position": (0, 0, 0, 'E'), //(x,y,z,DIRECTION), DIRECTION: N North, E East, S South, W West (U/D up/down?)
+            "lockState": "Locked",
+            "startingState": "Closed",
+            "health": 10, // health <= 0 --> unbreakable. health > 0 --> breakable
+            "overwriteable":"false" //Master: Door type can't be overwritten by other rooms. Slave: Door type can be overwritten by other rooms (Master doors)
+        },
+    ],
+    "spawnableObjects":[
+        {   
+            "prefab":"object1_id",    
+            "position" : (0, 10, 0), //(x,y,z)
+            "rotation": (0, 0, 0, 0), //(w,x,y,z) <Quarternion>
+            "scale":(1,1,1), //Needed??
+            "requires": ["object3_id"], //These objects must be in the scene for this object to be placed
+            "conflictsWith":["object2_id"] //These objects cannot be in the scene for this object to be placed
+        },
+        {
+            "prefab": "object2_id",
+            "position": (0, 10, 0), //(x,y,z)
+            "rotation": (0, 0, 0, 0), //(w,x,y,z) <Quarternion>
+            "scale": (1, 1, 1), //Needed??
+            "requires": ["object3_id"], //These objects must be in the scene for this object to be placed
+            "conflictsWith": ["object1_id"] //These objects cannot be in the scene for this object to be placed
+        },
+        {
+            "prefab": "object3_id",
+            "position": (0, 0, 0), //(x,y,z)
+            "rotation": (0, 0, 0, 0), //(w,x,y,z) <Quarternion>
+            "scale": (1, 1, 1), //Needed??
+            "requires": [], //These objects must be in the scene for this object to be placed
+            "conflictsWith": [] //These objects cannot be in the scene for this object to be placed
+        },
+    ]
+}
