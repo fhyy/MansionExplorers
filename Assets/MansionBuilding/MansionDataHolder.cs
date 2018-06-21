@@ -1,17 +1,19 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class MansionDataHolder : MonoBehaviour {
+public class MansionDataHolder {
 
-    public bool[,,] occupiedTiles = new bool[255,3,255]; //[x, y, z]
+    public RoomDataHolder[,,] occupiedTiles;
+    public ushort height;
+    public ushort width;
+    public ushort depth;
 
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+    public MansionDataHolder(ushort width, ushort height, ushort depth)
+    {
+        occupiedTiles = new RoomDataHolder[width, height, depth]; //[x, y, z]
+        this.width = width;
+        this.height = height;
+        this.depth = depth;
+    }
+
 }

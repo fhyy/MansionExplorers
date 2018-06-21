@@ -3,26 +3,36 @@ using System.Collections;
 
 public class RoomDataHolder : MonoBehaviour {
 
-    public enum roomDirection
+    public enum Storey
     {
-        NORTH = 0,
-        EAST = 1,
-        SOUTH = 2,
-        WEST = 3
+        ENTRANCE = 0,
+        MINUS_ONE = -1,
+        PLUS_ONE = 1,
+        ROOF = 2
     }
 
-    public roomDirection baseRotation = roomDirection.NORTH;
-    public Vector3[] occupiedTiles = { };
-    public DoorData[] doors = { };
+    private Coordinate worldPosition = null;
+    private Orientation worldOrientation = Orientation.NORTH;
+    public Coordinate[] occupiedTiles = { new Coordinate(0,0,0) };
+    public Storey[] allowedSpawnStoreys = { Storey.ENTRANCE };
+    public DoorData[] doors = {  };
     public SpawnableObject[] spawnableObjects = { };
 
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+    public void setWorldPosition(Coordinate coordinate)
+    {
+        worldPosition = coordinate;
+    }
+    public Coordinate getWorldPosition()
+    {
+        return worldPosition;
+    }
+
+    public void setOrientation(Orientation orientation)
+    {
+        worldOrientation = orientation;
+    }
+    public Orientation getOrientation()
+    {
+        return worldOrientation;
+    }
 }
