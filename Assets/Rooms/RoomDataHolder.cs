@@ -13,10 +13,32 @@ public class RoomDataHolder : MonoBehaviour {
 
     private Coordinate worldPosition = null;
     private Orientation worldOrientation = Orientation.NORTH;
-    public Coordinate[] occupiedTiles = { new Coordinate(0,0,0) };
+    public TileData[] occupiedTiles = { new TileData(0,0,0) };
     public Storey[] allowedSpawnStoreys = { Storey.ENTRANCE };
-    public DoorData[] doors = {  };
     public SpawnableObject[] spawnableObjects = { };
+    public RoomColliderHandler colliderHandler = null;
+
+    public OnEnterCallback onEnterCallback = null;
+
+    public RoomDataHolder(RoomDataHolder roomData)
+    {
+        this.worldPosition = new Coordinate(roomData.worldPosition);
+        this.worldOrientation = roomData.worldOrientation;
+        this.occupiedTiles = (TileData[]) roomData.occupiedTiles.Clone();
+        this.allowedSpawnStoreys = (Storey[])roomData.allowedSpawnStoreys;
+        this.spawnableObjects = (SpawnableObject[])roomData.spawnableObjects.Clone();
+        this.colliderHandler = (roomData.colliderHandler);
+    }
+
+    public void registerCallback(RoomColliderHandler.Callback callback)
+    {
+        this.colliderHandler.registerCallback(callback);
+    }
+
+    public void removeCallback()
+    {
+        this.colliderHandler.removeCallback();
+    }
 
     public void setWorldPosition(Coordinate coordinate)
     {
@@ -34,5 +56,11 @@ public class RoomDataHolder : MonoBehaviour {
     public Orientation getOrientation()
     {
         return worldOrientation;
+    }
+
+
+    public abstract class OnEnterCallback
+    {
+        public abstract void onEnter();
     }
 }

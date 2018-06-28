@@ -15,6 +15,13 @@ public class Coordinate
         this.z = z;
     }
 
+    public Coordinate(Coordinate coordinate)
+    {
+        this.x = coordinate.x;
+        this.y = coordinate.y;
+        this.z = coordinate.z;
+    }
+
     public static Coordinate operator +(Coordinate a, Orientation o)
     {
         switch (o)

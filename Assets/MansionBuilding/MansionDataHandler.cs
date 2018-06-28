@@ -8,41 +8,82 @@ public class MansionDataHandler {
        mansionData = new MansionDataHolder(mansionMaxWidth, mansionMaxHeight, mansionMaxDepth);
     }
 
-    public bool isRoomTileOccupied(Coordinate coordinate)
+    private bool checkIfValidCoordinates(Coordinate coordinate)
     {
-        if(coordinate.x >= mansionData.width || coordinate.x < 0)
+        if (coordinate.x >= mansionData.width || coordinate.x < 0)
         {
-            return true;
+            return false;
         }
         if (coordinate.y >= mansionData.height || coordinate.y < 0)
         {
-            return true;
+            return false;
         }
         if (coordinate.z >= mansionData.depth || coordinate.z < 0)
         {
-            return true;
+            return false;
+        }
+        return true;
+    }
+
+    public bool canPlaceRoomOnTile(Coordinate coordinate)
+    {
+        if (!checkIfValidCoordinates(coordinate))
+        {
+            return false;
+        }
+        return mansionData.occupiedTiles[coordinate.x, coordinate.y, coordinate.z] == null;
+    }
+
+    public bool isRoomTileOccupied(Coordinate coordinate)
+    {
+
+        if (!checkIfValidCoordinates(coordinate))
+        {
+            return false;
         }
         return mansionData.occupiedTiles[coordinate.x, coordinate.y, coordinate.z] != null;
     }
 
-    public bool getRoomDataOnTile(Coordinate coordinate)
+    public RoomDataHolder getRoomDataOnCoordinate(Coordinate coordinate)
     {
-        return mansionData.occupiedTiles[coordinate.x, coordinate.y, coordinate.z];
+        if (!checkIfValidCoordinates(coordinate))
+        {
+            return null;
+        }
+        MansionTileInfo tileInfo = mansionData.occupiedTiles[coordinate.x, coordinate.y, coordinate.z];
+        if (tileInfo != null)
+        {
+            return tileInfo.roomData;
+        }
+        return null;
+    }
+
+    public TileData getTileDataOnCoordinate(Coordinate coordinate)
+    {
+        if (!checkIfValidCoordinates(coordinate))
+        {
+            return null;
+        }
+        MansionTileInfo tileInfo = mansionData.occupiedTiles[coordinate.x, coordinate.y, coordinate.z];
+        if(tileInfo != null)
+        {
+            return tileInfo.tileData;
+        }
+        return null;
     }
 
     public void addRoomTiles(RoomDataHolder roomData)
     {
         Coordinate roomPosition = roomData.getWorldPosition();
-        foreach (Coordinate tile in roomData.occupiedTiles)
+        foreach (TileData tile in roomData.occupiedTiles)
         {
-            Coordinate transformed_tile = CommonOperations.getTransformedCoordinate(tile, roomData.getOrientation());
+            Coordinate transformed_tile = CommonOperations.getTransformedCoordinate(tile.tileCoordinate, roomData.getOrientation());
             Coordinate transformedCoordinate = roomPosition + transformed_tile;
-            Debug.Log("Occupying tile: " + transformedCoordinate.getCoordinateString());
             if(transformedCoordinate.x < 0 || transformedCoordinate.y < 0 || transformedCoordinate.z < 0)
             {
                 return;
             }
-            mansionData.occupiedTiles[transformedCoordinate.x, transformedCoordinate.y, transformedCoordinate.z] = roomData;
+            mansionData.occupiedTiles[transformedCoordinate.x, transformedCoordinate.y, transformedCoordinate.z] = new MansionTileInfo(roomData, tile);
         }
     }
 }

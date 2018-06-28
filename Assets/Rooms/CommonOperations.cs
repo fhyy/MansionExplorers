@@ -47,6 +47,25 @@ public static class CommonOperations {
         }
     }
 
+    public static Orientation getOrientationBetweenCoordinates(Coordinate source, Coordinate target)
+    {
+        Coordinate coordDiff = target - source;
+        if (System.Math.Abs(coordDiff.x) > System.Math.Abs(coordDiff.z))
+        {
+            if (coordDiff.x > 0)
+                return Orientation.EAST;
+            else
+                return Orientation.WEST;
+        }
+        else
+        {
+            if (coordDiff.z < 0)
+                return Orientation.SOUTH;
+            else
+                return Orientation.NORTH;
+        }
+    }
+
     private static ushort getOrientationNumber(Orientation orientation)
     {
         switch (orientation)
@@ -74,6 +93,21 @@ public static class CommonOperations {
                 return Orientation.WEST;
             default:
                 return Orientation.NORTH;
+        }
+    }
+
+    public static Orientation getInvertedOrientation(Orientation orientation)
+    {
+        switch (orientation)
+        {
+            case Orientation.EAST:
+                return Orientation.WEST;
+            case Orientation.SOUTH:
+                return Orientation.NORTH;
+            case Orientation.WEST:
+                return Orientation.EAST;
+            default:
+                return Orientation.SOUTH;
         }
     }
 

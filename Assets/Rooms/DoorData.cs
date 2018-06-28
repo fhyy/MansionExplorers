@@ -11,7 +11,6 @@ public class DoorData
     }
 
     public bool overwriteable = true;
-    public Coordinate position = new Coordinate(0,0,0);
     public Orientation wallDirection = Orientation.NORTH;
     public doorState startingState = doorState.CLOSED;
     public int health = 0;

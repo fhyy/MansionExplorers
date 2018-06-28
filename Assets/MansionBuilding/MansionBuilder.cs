@@ -4,50 +4,57 @@ using System.Collections.Generic;
 
 public class MansionBuilder : MonoBehaviour {
 
-    private MansionDataHandler mansionDataHandler = new MansionDataHandler(255, 4, 255);
+    private MansionDataHandler mansionDataHandler = new MansionDataHandler(10, 4, 10);
     public GameObject[] spawnableRooms = { };
-
+    
     public void placeRoom(Coordinate coordinate)
     {
-        Debug.Log(">>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        if (!mansionDataHandler.isRoomTileOccupied(coordinate))
+        if (mansionDataHandler.canPlaceRoomOnTile(coordinate))
         {
             GameObject roomObject = getNextFittingRoom(coordinate);
             if (roomObject != null)
             {
                 RoomDataHolder roomData = roomObject.GetComponent<RoomDataHolder>();
 
-                Debug.Log("----------Fitting room data-----------");
-                Debug.Log("Occupied tiles:");
-                foreach(Coordinate occupiedTile in roomData.occupiedTiles)
-                {
-                    Debug.Log(occupiedTile.getCoordinateString());
-                }
-                Debug.Log("Room position: " + roomData.getWorldPosition().getCoordinateString());
-                Debug.Log("==================\n");
+                GameObject builtObject = buildRoomObject(roomObject, roomData);
+                RoomDataHolder builtRoomData = builtObject.GetComponent<RoomDataHolder>();
 
-                mansionDataHandler.addRoomTiles(roomData);
-                buildRoomObject(roomObject, roomData);
+                builtRoomData.setWorldPosition(roomData.getWorldPosition());
+                builtRoomData.setOrientation(roomData.getOrientation());
+
+                builtRoomData.registerCallback(new OnRoomEnteredCallback(this, builtRoomData));
+                
+                mansionDataHandler.addRoomTiles(builtRoomData);
             }
-            else
+        }
+    }
+
+    public IEnumerator placeRoomsOnAllDoors(RoomDataHolder srcRoomData)
+    {
+        if (srcRoomData != null){
+            foreach (TileData tile in srcRoomData.occupiedTiles)
             {
-                Debug.LogError("Could not place room on: " + coordinate.getCoordinateString());
+                foreach (DoorData door in tile.doors)
+                {
+                    Coordinate tileBehindDoorCoordinate = getCoordinateOfTileBehindDoor(srcRoomData.getWorldPosition(), tile, door, srcRoomData.getOrientation());
+                    placeRoom(tileBehindDoorCoordinate);
+
+                    yield return null;
+                }
             }
         }
-        else
-        {
-            Debug.Log("Room tile occupied: " + coordinate.getCoordinateString());
-        }
-        Debug.Log("<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
     }
 
     public GameObject getNextFittingRoom(Coordinate baseTile)
     {
+
+        RoomDataHolder checkRoom = mansionDataHandler.getRoomDataOnCoordinate(new Coordinate(0,0,1));
+
         //List<UnityEngine.Object> roomPrefabs = getAllRoomPrefabs();
         GameObject[] checkableSpawnableRooms = spawnableRooms;
-        while(checkableSpawnableRooms.Length > 0) {
+        while (checkableSpawnableRooms.Length > 0)
+        {
             GameObject roomObject = CommonOperations.getRandomItemFromList<GameObject>(checkableSpawnableRooms);
-            Debug.Log("Trying to fit a room: " + roomObject.name);
 
             RoomDataHolder roomData = roomObject.GetComponent(typeof(RoomDataHolder)) as RoomDataHolder;
             if (roomData != null)
@@ -55,20 +62,11 @@ public class MansionBuilder : MonoBehaviour {
                 RoomFitTransform roomFitTransform = checkIfRoomFits(baseTile, roomData);
                 if (roomFitTransform != null)
                 {
-                    Debug.Log("RoomFitTransform: " + roomFitTransform.baseLocation.getCoordinateString());
                     roomData.setWorldPosition(baseTile + roomFitTransform.baseLocation);
                     roomData.setOrientation(roomFitTransform.orientation);
                     RoomDataHolder roomData2 = roomObject.GetComponent(typeof(RoomDataHolder)) as RoomDataHolder;
 
-                    Debug.Log("Roomdata1: " + roomData.getWorldPosition().getCoordinateString());
-                    Debug.Log("Roomdata1 set to: " + roomFitTransform.baseLocation.getCoordinateString());
-                    Debug.Log("Roomdata2: " + roomData2.getWorldPosition().getCoordinateString());
-
                     return roomObject;
-                }
-                else
-                {
-                    Debug.Log("Room did not fit!");
                 }
             }
 
@@ -127,36 +125,30 @@ public class MansionBuilder : MonoBehaviour {
     private RoomFitTransform checkIfRoomFits(Coordinate baseTile, RoomDataHolder roomData, Orientation orientation)
     {
         // Try moving the room so that any occupied tile is positioned on baseTile
-        Coordinate[] testTiles = roomData.occupiedTiles;
+        TileData[] testTiles = roomData.occupiedTiles;
         while(testTiles.Length > 0) {
-            Coordinate newRoomBaseTile = CommonOperations.getRandomItemFromList<Coordinate>(testTiles);
-            Debug.Log("Trying to place room tile with base on: " + baseTile.getCoordinateString());
+            Coordinate newRoomBaseTile = CommonOperations.getRandomItemFromList<TileData>(testTiles).tileCoordinate;
+            
             bool collisionDetected = false;
             // Room may be rotated, transform coordinates accordingly
             Coordinate transformed_newRoomBaseTile = CommonOperations.getTransformedCoordinate(newRoomBaseTile, orientation);
-            foreach (Coordinate roomOccupationTile in roomData.occupiedTiles)
+            foreach (TileData roomOccupationTile in roomData.occupiedTiles)
             {
                 // Room may be rotated, transform coordinates accordingly
-                Coordinate transformed_roomOccupationTile = CommonOperations.getTransformedCoordinate(roomOccupationTile, orientation);
+                Coordinate transformed_roomOccupationTile = CommonOperations.getTransformedCoordinate(roomOccupationTile.tileCoordinate, orientation);
 
                 // Get the coordinate of the tiles in the rotated and shifted room
                 Coordinate checkCoordinate = baseTile + (transformed_roomOccupationTile - transformed_newRoomBaseTile);
-                Debug.Log("CheckTile: " + checkCoordinate.getCoordinateString());
-                Debug.Log("(transformed_roomOccupationTile - transformed_newRoomBaseTile) = " + (transformed_roomOccupationTile - transformed_newRoomBaseTile).getCoordinateString());
 
-                // Check if this tile is occupied
-                if (mansionDataHandler.isRoomTileOccupied(checkCoordinate))
+                // Check if room can be placed on this tile
+                if (!mansionDataHandler.canPlaceRoomOnTile(checkCoordinate))
                 {
                     collisionDetected = true;
                     break;
                 }
-                else
-                {
-                    Debug.Log("Tile was occupied: " + checkCoordinate.getCoordinateString());
-                }
             }
             // Check if all doors align with existing doors
-            if(!checkIfDoorsAlign(baseTile, roomData, transformed_newRoomBaseTile, orientation))
+            if(!collisionDetected && !checkIfDoorsAlign(baseTile, roomData, transformed_newRoomBaseTile, orientation))
             {
                 collisionDetected = true;
             }
@@ -164,52 +156,113 @@ public class MansionBuilder : MonoBehaviour {
             // No collisions with the transformation above. Use that transformation to later place the room!
             if (!collisionDetected)
             {
-                Debug.Log("Room okay, transform like this: " + (-transformed_newRoomBaseTile).getCoordinateString());
                 return new RoomFitTransform(-transformed_newRoomBaseTile, orientation);
             }
 
             // Remove checked coordinate from list
-            Coordinate[] newTestTiles = new Coordinate[testTiles.Length - 1];
+            TileData[] newTestTiles = new TileData[testTiles.Length - 1];
             int index = 0;
             for (int i = 0; i < testTiles.Length && index < newTestTiles.Length; ++i)
             {
-                if (testTiles[i] != newRoomBaseTile)
+                if (testTiles[i].tileCoordinate != newRoomBaseTile)
                     newTestTiles[index++] = testTiles[i];
             }
-            testTiles = newTestTiles.Clone() as Coordinate[];
+            testTiles = newTestTiles.Clone() as TileData[];
         }
-        // No transformation of this room fit on this tile
+        // No transformation of this room fit on this 
         return null;
     }
 
-    private bool checkIfDoorsAlign(Coordinate baseTile, RoomDataHolder roomData, Coordinate transformed_roomShiftAmount, Orientation orientationOfTheRoom)
+    private bool checkIfDoorsAlign(Coordinate baseTileCoordinate, RoomDataHolder roomData, Coordinate transformed_roomShiftAmount, Orientation orientationOfTheRoom)
     {
         bool misalignmentDetected = false;
-        foreach(DoorData door in roomData.doors)
+        foreach (TileData tile in roomData.occupiedTiles)
         {
-            Coordinate transformed_doorLocation = CommonOperations.getTransformedCoordinate(door.position, orientationOfTheRoom);
-            Coordinate neightbourTileCoordinate = getCoordinateOfTileBehindDoor(baseTile, door, transformed_roomShiftAmount, orientationOfTheRoom);
-            if(neightbourTileCoordinate == null)
-            {
-                continue;
+
+            Coordinate transformed_tileLocation = CommonOperations.getTransformedCoordinate(tile.tileCoordinate, orientationOfTheRoom);
+            Coordinate world_tileLocation = baseTileCoordinate + transformed_tileLocation;
+
+            // Check doors on walls in each direction
+            if(!checkIfDoorsAlign_helper(tile, world_tileLocation, orientationOfTheRoom, Orientation.NORTH)){
+                misalignmentDetected = true;
             }
-            //TODO!!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            if (!checkIfDoorsAlign_helper(tile, world_tileLocation, orientationOfTheRoom, Orientation.EAST)){
+                misalignmentDetected = true;
+            }
+            if (!checkIfDoorsAlign_helper(tile, world_tileLocation, orientationOfTheRoom, Orientation.SOUTH)){
+                misalignmentDetected = true;
+            }
+            if (!checkIfDoorsAlign_helper(tile, world_tileLocation, orientationOfTheRoom, Orientation.WEST)){
+                misalignmentDetected = true;
+            }
         }
         return !misalignmentDetected;
     }
 
-    private Coordinate getCoordinateOfTileBehindDoor(Coordinate baseTile, DoorData door, Coordinate transformed_roomShiftAmount, Orientation orientationOfTheRoom)
+    private bool checkIfDoorsAlign_helper(TileData tile, Coordinate world_tileLocation, Orientation orientationOfTheRoom, Orientation doorDirection)
     {
-        Coordinate transformed_doorTile_offset = CommonOperations.getTransformedCoordinate(door.position, orientationOfTheRoom);
-        Coordinate doorTileLocation = baseTile + (transformed_doorTile_offset + transformed_roomShiftAmount);
+        bool canPlaceRoomOnNeighbourTile = mansionDataHandler.canPlaceRoomOnTile(world_tileLocation + doorDirection);
+        bool hasDoorOnWall = checkIfDoorAgainstWall(tile, orientationOfTheRoom, doorDirection);
+        bool neighbourRoomExist = mansionDataHandler.getTileDataOnCoordinate(world_tileLocation + doorDirection) != null;
+        bool hasDoorOnNeighbourWall = checkIfDoorAgainstWall(world_tileLocation + doorDirection, CommonOperations.getInvertedOrientation(doorDirection));
+
+        if (canPlaceRoomOnNeighbourTile && hasDoorOnWall)
+        {
+            return true;
+        }
+        if(hasDoorOnWall && neighbourRoomExist && hasDoorOnNeighbourWall)
+        {
+            return true;
+        }
+        if(!hasDoorOnWall && !hasDoorOnNeighbourWall)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private bool checkIfDoorAgainstWall(TileData targetTileData, Orientation roomOrientation, Orientation wallDirection)
+    {
+        if (targetTileData == null)
+        {
+            return false;
+        }
+
+        bool foundDoor = false;
+        foreach (DoorData door in targetTileData.doors)
+        {
+            if (CommonOperations.getTransformedOrientation(door.wallDirection, roomOrientation) == wallDirection)
+            {
+                foundDoor = true;
+            }
+        }
+        return foundDoor;
+    }
+    private bool checkIfDoorAgainstWall(Coordinate coordinate, Orientation wallDirection)
+    {
+        TileData targetTileData = mansionDataHandler.getTileDataOnCoordinate(coordinate);
+        RoomDataHolder targetRoomData = mansionDataHandler.getRoomDataOnCoordinate(coordinate);
+        if (targetRoomData == null)
+        {
+            return false;
+        }
+        return checkIfDoorAgainstWall(targetTileData, targetRoomData.getOrientation(), wallDirection);
+    }
+
+    private Coordinate getCoordinateOfTileBehindDoor(Coordinate baseTile, TileData tile, DoorData door, Orientation orientationOfTheRoom)
+    {
+        Coordinate transformed_doorTile_offset = CommonOperations.getTransformedCoordinate(tile.tileCoordinate, orientationOfTheRoom);
+        Coordinate doorTileLocation = baseTile + transformed_doorTile_offset;
         Orientation transformed_doorOrientation = CommonOperations.getTransformedOrientation(door.wallDirection, orientationOfTheRoom);
+        //Coordinate + Orientation = one step in that direction
         return doorTileLocation + transformed_doorOrientation;
     }
 
     private GameObject buildRoomObject(GameObject roomPrefab, RoomDataHolder roomData)
     {
-        setRoomLocation(Instantiate(roomPrefab), roomData.getWorldPosition(), roomData.getOrientation());
-        return null;
+        GameObject builtObject = Instantiate(roomPrefab);
+        setRoomLocation(builtObject, roomData.getWorldPosition(), roomData.getOrientation());
+        return builtObject;
     }
 
     private Vector3 getRealPosition(Coordinate matrixIndexes)
@@ -222,19 +275,18 @@ public class MansionBuilder : MonoBehaviour {
         switch (orientation)
         {
             case Orientation.EAST:
-                return new Vector3(270, 90, 0);
+                return new Vector3(0, 90, 0);
             case Orientation.SOUTH:
-                return new Vector3(270, 180, 0);
+                return new Vector3(0, 180, 0);
             case Orientation.WEST:
-                return new Vector3(270, 270, 0);
+                return new Vector3(0, 270, 0);
             default:
-                return new Vector3(270, 0, 0);
+                return new Vector3(0, 0, 0);
         }
     }
 
     public void setRoomLocation(GameObject room, Coordinate coordinate, Orientation orientation)
     {
-        Debug.Log("Setting room location to: " + coordinate.getCoordinateString());
         Transform transform = room.transform;
         if (transform != null)
         {
@@ -250,33 +302,41 @@ public class MansionBuilder : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-        int width = 8;
-        int depth = 8;
-        for(int i = 10; i > 0; --i){
-            placeRoom(new Coordinate((int)(Random.value*width), 1, (int)(Random.value * depth)));
-        } 
-        //placeRoom(new Coordinate(1,0,1));
-        //placeRoom(new Coordinate(1, 0, 0));
-        //placeRoom(new Coordinate(0, 0, 1));
+        Random.seed = 14;
+        int width = 6;
+        int depth = 6;
+        for (int i = 100; i > 0; --i)
+        {
+            //placeRoom(new Coordinate((int)(Random.value*width), 1, (int)(Random.value * depth)));
+        }
         //placeRoom(new Coordinate(0, 0, 0));
+        //placeRoom(new Coordinate(0, 0, 1));
+        //placeRoom(new Coordinate(1, 0, 0));
+        placeRoom(new Coordinate(1, 0, 1));
     }
 
     // Update is called once per frame
     int updateCounter = 0;
     int roomsSpawned = 0;
     void Update () {
-        if (roomsSpawned > 300)
+        if (roomsSpawned > 00)
             return;
         ++updateCounter;
-        int width = 10;
-        int depth = 10;
         if (updateCounter == 30)
         {
             updateCounter = 0;
-            placeRoom(new Coordinate((int)(Random.value * width), 1, (int)(Random.value * depth)));
+            //placeRoom(1, 0, 1, 0, 10, 1, 30);
             ++roomsSpawned;
         }
 	}
+
+    private void placeRoom(int amount, int startX, int startZ, int startY, int width, int height, int depth)
+    {
+        for (int i = amount; i > 0; --i)
+        {
+            placeRoom(new Coordinate(startX + (int)(Random.value * width), startY + (int)(Random.value * height), startZ + (int)(Random.value * depth)));
+        }
+    }
 
     private class RoomFitTransform
     {
@@ -287,6 +347,26 @@ public class MansionBuilder : MonoBehaviour {
         {
             this.baseLocation = baseLocation;
             this.orientation = orientation;
+        }
+    }
+
+    private class OnRoomEnteredCallback : RoomColliderHandler.Callback
+    {
+        private RoomDataHolder roomData;
+        private MansionBuilder mansionBuilder;
+        public OnRoomEnteredCallback(MansionBuilder parentBuilder, RoomDataHolder roomData)
+        {
+            this.roomData = roomData;
+            this.mansionBuilder = parentBuilder;
+        }
+
+        override
+        public void onEnter()
+        {
+            IEnumerator coroutine = mansionBuilder.placeRoomsOnAllDoors(roomData);
+            mansionBuilder.StartCoroutine(coroutine);
+            //mansionBuilder.placeRoomsOnAllDoors(roomData);
+            roomData.removeCallback();
         }
     }
 }
