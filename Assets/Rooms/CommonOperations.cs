@@ -22,11 +22,21 @@ public static class CommonOperations {
     public static T getRandomItemFromList<T>(T[] list)
     {
         int randomIndex = (int)(Random.value * (list.Length));
-        if(randomIndex == list.Length)
+        if(randomIndex >= list.Length)
         {
-            randomIndex--;
+            randomIndex = list.Length - 1;
         }
-        return (T)list.GetValue(randomIndex);
+        return (T)list[randomIndex];
+    }
+
+    public static T getRandomItemFromList<T>(List<T> list)
+    {
+        int randomIndex = (int)(Random.value * (list.Count));
+        if (randomIndex >= list.Count)
+        {
+            randomIndex = list.Count-1;
+        }
+        return (T)list[randomIndex];
     }
 
     public static Coordinate getTransformedCoordinate(Coordinate coordinateFromBase, Orientation orientation)
