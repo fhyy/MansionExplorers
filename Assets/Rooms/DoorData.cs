@@ -1,5 +1,8 @@
-﻿using UnityEditor;
+﻿#if (UNITY_EDITOR)
+using UnityEditor;
+#endif
 using UnityEngine;
+using UnityStandardAssets;
 
 [System.Serializable]
 public class DoorData
