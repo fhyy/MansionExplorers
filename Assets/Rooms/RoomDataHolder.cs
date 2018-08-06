@@ -13,7 +13,8 @@ public class RoomDataHolder : MonoBehaviour {
 
     private Coordinate worldPosition = null;
     private Orientation worldOrientation = Orientation.NORTH;
-    public TileData[] occupiedTiles = { new TileData(0,0,0) };
+    public TileData[] occupiedTiles = { new TileData(0, 0, 0) };
+    public GameObject[] spawnableDoors = { };
     public Storey[] allowedSpawnStoreys = { Storey.ENTRANCE };
     public SpawnableObject[] spawnableObjects = { };
     public RoomColliderHandler colliderHandler = null;
@@ -56,6 +57,13 @@ public class RoomDataHolder : MonoBehaviour {
     public Orientation getOrientation()
     {
         return worldOrientation;
+    }
+
+    public GameObject getRandomSpawnableDoor()
+    {
+        GameObject doorObject = CommonOperations.getRandomItemFromList<GameObject>(spawnableDoors);
+        //TODO: Check if door fulfills door constraints?
+        return doorObject;
     }
 
 

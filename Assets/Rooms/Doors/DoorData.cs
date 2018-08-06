@@ -21,4 +21,15 @@ public class DoorData
     public bool locked = false;
     [ConditionalHide("locked", true)]
     public DoorLock doorLock = new DoorLock(0);
+    private GameObject doorObject = null;
+
+    public void setDoorObject(GameObject doorObject)
+    {
+        this.doorObject = doorObject;
+    }
+
+    public GameObject getDoorObject()
+    {
+        return this.doorObject;
+    }
 }

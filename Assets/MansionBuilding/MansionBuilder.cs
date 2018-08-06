@@ -7,6 +7,29 @@ public class MansionBuilder : MonoBehaviour {
     private MansionDataHandler mansionDataHandler = new MansionDataHandler(10, 8, 10);
     public GameObject[] spawnableRooms = { };
 
+    public void placeRoom(Coordinate coordinate, int depth)
+    {
+        if(depth == 0)
+        {
+            return;
+        }
+        placeRoom(coordinate);
+        RoomDataHolder srcRoomData = mansionDataHandler.getRoomDataOnCoordinate(coordinate);
+
+        depth--;
+        if (srcRoomData != null)
+        {
+            foreach (TileData tile in srcRoomData.occupiedTiles)
+            {
+                foreach (DoorData door in tile.doors)
+                {
+                    Coordinate tileBehindDoorCoordinate = getCoordinateOfTileBehindDoor(srcRoomData.getWorldPosition(), tile, door, srcRoomData.getOrientation());
+                    placeRoom(tileBehindDoorCoordinate, depth);
+                }
+            }
+        }
+    }
+
     public void placeRoom(Coordinate coordinate)
     {
         if (mansionDataHandler.canPlaceRoomOnTile(coordinate))
@@ -25,6 +48,82 @@ public class MansionBuilder : MonoBehaviour {
                 builtRoomData.registerCallback(new OnRoomEnteredCallback(this, builtRoomData));
                 spawnRandomObjects(builtRoomData);
                 mansionDataHandler.addRoomTiles(builtRoomData);
+
+                placeAndConnectDoors(builtRoomData);
+            }
+        }
+    }
+
+    private void placeAndConnectDoors(RoomDataHolder srcRoomData)
+    {
+        if (srcRoomData != null)
+        {
+            foreach (TileData tile in srcRoomData.occupiedTiles)
+            {
+                foreach (DoorData door in tile.doors)
+                {
+                    Coordinate tileBehindDoorCoordinate = getCoordinateOfTileBehindDoor(srcRoomData.getWorldPosition(), tile, door, srcRoomData.getOrientation());
+                    RoomDataHolder neighbourRoomData = mansionDataHandler.getRoomDataOnCoordinate(tileBehindDoorCoordinate);
+                    TileData neighbourTileData = mansionDataHandler.getTileDataOnCoordinate(tileBehindDoorCoordinate);
+
+                    if(neighbourRoomData == null || neighbourTileData == null)
+                    {
+                        Coordinate transformed_doorTile_offset = CommonOperations.getTransformedCoordinate(tile.tileCoordinate, srcRoomData.getOrientation());
+                        Coordinate doorTileLocation = srcRoomData.getWorldPosition() + transformed_doorTile_offset;
+                        placeDoor(srcRoomData, tile, door, CommonOperations.getTransformedOrientation(door.wallDirection, srcRoomData.getOrientation()), doorTileLocation);
+                    }
+                    else
+                    {
+                        connectDoor(srcRoomData, tile, neighbourRoomData, neighbourTileData, door);
+                    }
+                }
+            }
+        }
+    }
+
+    private void placeDoor(RoomDataHolder roomData, TileData tile, DoorData door, Orientation orientation, Coordinate coordinate)
+    {
+        GameObject doorObject = roomData.getRandomSpawnableDoor();
+        GameObject builtDoor = Instantiate(doorObject);
+
+        Transform doorTransform = builtDoor.transform;
+        if (doorTransform != null) {
+
+            doorTransform.parent = this.gameObject.transform;
+
+            Vector3 pos = getRealDoorPosition(coordinate, orientation);
+            Vector3 rot = getRealDoorRotation(orientation);
+
+            doorTransform.position = pos;
+            doorTransform.eulerAngles = rot;
+        }
+        door.setDoorObject(builtDoor);
+    }
+
+    private void connectDoor(RoomDataHolder srcRoomData, TileData srcTileData, RoomDataHolder neighbourRoomData, TileData neighbourTileData, DoorData door)
+    {
+        Orientation srcDoorOrientation = CommonOperations.getTransformedOrientation(door.wallDirection, srcRoomData.getOrientation());
+        Orientation targetOrientation = CommonOperations.getInvertedOrientation(srcDoorOrientation);
+        Orientation neighbourRoomOrientation = neighbourRoomData.getOrientation();
+
+        Orientation targetDoorOrientation = targetOrientation;
+        if (neighbourRoomOrientation == Orientation.EAST)
+        {
+            targetDoorOrientation = CommonOperations.getTransformedOrientation(targetOrientation, Orientation.WEST);
+        }else if (neighbourRoomOrientation == Orientation.SOUTH)
+        {
+            targetDoorOrientation = CommonOperations.getTransformedOrientation(targetOrientation, Orientation.SOUTH);
+        }
+        else if (neighbourRoomOrientation == Orientation.WEST)
+        {
+            targetDoorOrientation = CommonOperations.getTransformedOrientation(targetOrientation, Orientation.EAST);
+        }
+
+        foreach(DoorData doorData in neighbourTileData.doors)
+        {
+            if(doorData.wallDirection == targetDoorOrientation)
+            {
+                door.setDoorObject(doorData.getDoorObject());
             }
         }
     }
@@ -37,7 +136,7 @@ public class MansionBuilder : MonoBehaviour {
                 foreach (DoorData door in tile.doors)
                 {
                     Coordinate tileBehindDoorCoordinate = getCoordinateOfTileBehindDoor(srcRoomData.getWorldPosition(), tile, door, srcRoomData.getOrientation());
-                    placeRoom(tileBehindDoorCoordinate);
+                    placeRoom(tileBehindDoorCoordinate,2);
 
                     yield return null;
                 }
@@ -286,6 +385,36 @@ public class MansionBuilder : MonoBehaviour {
         }
     }
 
+    private Vector3 getRealDoorPosition(Coordinate matrixIndexes, Orientation orientation)
+    {
+        switch (orientation)
+        {
+            case Orientation.EAST:
+                return new Vector3(matrixIndexes.x * 8 + 4, matrixIndexes.y * 4, matrixIndexes.z * 8);
+            case Orientation.SOUTH:
+                return new Vector3(matrixIndexes.x * 8, matrixIndexes.y * 4, matrixIndexes.z * 8 - 4);
+            case Orientation.WEST:
+                return new Vector3(matrixIndexes.x * 8 - 4, matrixIndexes.y * 4, matrixIndexes.z * 8);
+            default:
+                return new Vector3(matrixIndexes.x * 8, matrixIndexes.y * 4, matrixIndexes.z * 8 + 4);
+        }
+    }
+
+    private Vector3 getRealDoorRotation(Orientation orientation)
+    {
+        switch (orientation)
+        {
+            case Orientation.EAST:
+                return new Vector3(0, 180, 0);
+            case Orientation.SOUTH:
+                return new Vector3(0, 270, 0);
+            case Orientation.WEST:
+                return new Vector3(0, 0, 0);
+            default:
+                return new Vector3(0, 90, 0);
+        }
+    }
+
     public void setRoomLocation(GameObject room, Coordinate coordinate, Orientation orientation)
     {
         Transform transform = room.transform;
@@ -460,7 +589,7 @@ public class MansionBuilder : MonoBehaviour {
         //placeRoom(new Coordinate(0, 0, 0));
         //placeRoom(new Coordinate(0, 0, 1));
         //placeRoom(new Coordinate(1, 0, 0));
-        placeRoom(new Coordinate(5, 1, 5));
+        placeRoom(new Coordinate(5, 1, 5), 3);
     }
 
     // Update is called once per frame
